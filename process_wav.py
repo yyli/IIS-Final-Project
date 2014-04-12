@@ -128,7 +128,7 @@ def get_diffs(data, distance=2):
     if len(filter) > len(data):
         print "Error: length of data too short to calculate differences over that distance"
 
-    return np.convolve(data, filter, mode='valid')
+    return np.convolve(data, filter, mode='same')
 
 def seperate_features_into_windows(data, window_length, gap):
     """ window_length, gap is in number of frames """
@@ -144,12 +144,15 @@ def seperate_features_into_windows(data, window_length, gap):
 
         window_data = np.array(window_data)
         window_data = window_data.reshape((window_data.size), 1)
-        print window_data.shape
 
         windows.append(window_data)
 
     windows = np.array(windows)
+    windows = np.squeeze(windows)
     return windows
+
+def concatenate_features(features):
+    return np.concatenate((features), axis=1)
 
 if __name__ == "__main__":
     data, fps = read_wav_file_into_np("in.wav")
@@ -164,11 +167,20 @@ if __name__ == "__main__":
         energy_vectors.append(energy)
         mfcc_vectors.append(mfcc)
 
-        print "processing:", i, "/", windows.shape[0]
+        print "processing:", i, "/", windows.shape[0] - 1
 
     frame_length = 100
     frame_gap = 10
-    pitch_features = seperate_features_into_windows(pitch_vectors, frame_length, frame_gap)
+    
     energy_features = seperate_features_into_windows(energy_vectors, frame_length, frame_gap)
+    pitch_features = seperate_features_into_windows(pitch_vectors, frame_length, frame_gap)
     mfcc_features = seperate_features_into_windows(mfcc_vectors, frame_length, frame_gap)
+    
+    pitch_dt_features = get_diffs(pitch_vectors)
+    pitch_dt_features = seperate_features_into_windows(pitch_dt_features, frame_length, frame_gap)
+    
+    energy_dt_features = get_diffs(energy_vectors)
+    energy_dt_features = seperate_features_into_windows(energy_dt_features, frame_length, frame_gap)
 
+    all_features = concatenate_features((pitch_features, energy_features, pitch_dt_features, energy_dt_features, mfcc_features))
+    print all_features.shape
