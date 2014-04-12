@@ -64,10 +64,16 @@ def get_pitch_and_energy(data, fps):
     # quadratic interpolation around the max
     if fft_data_idx != len(fft_data) - 1:
         y0, y1, y2 = np.log(fft_data[fft_data_idx - 1:fft_data_idx + 2:])
-        x1 = (y2 - y0) * 0.5 / (2 * y1 - y2 - y0)
+        denom = (2 * y1 - y2 - y0)
+        if math.isnan(denom):
+            freq = 0
+        elif denom == 0:
+            freq = fft_data_idx * fps/len(window)
+        else:
+            x1 = (y2 - y0) * 0.5 / denom
 
-        # find frequency
-        freq = (fft_data_idx + x1) * fps/len(window)
+            # find frequency
+            freq = (fft_data_idx + x1) * fps/len(window)
     else:
         freq = fft_data_idx * fps/len(window)
 
@@ -79,6 +85,7 @@ def get_mfcc(data, fps):
     power_spectrum = np.abs(complex_spectrum) ** 2
     filtered_spectrum = np.dot(power_spectrum, gen_mel_filter_bank(window_size, fps))
     log_spectrum = np.log(filtered_spectrum)
+    log_spectrum[np.where(np.isinf(log_spectrum))] = 0
     dct_spectrum = dct(log_spectrum, type=2)
 
     return dct_spectrum
@@ -154,14 +161,15 @@ def seperate_features_into_windows(data, window_length, gap):
 def concatenate_features(features):
     return np.concatenate((features), axis=1)
 
-if __name__ == "__main__":
-    data, fps = read_wav_file_into_np("in.wav")
+def gen_features_from_wave_file(filename):
+    data, fps = read_wav_file_into_np(filename)
     windows = seperate_into_windows(data, fps, 25, 10)
     pitch_vectors = []
     energy_vectors = []
     mfcc_vectors = []
     for i in xrange(windows.shape[0]):
         pitch, energy = get_pitch_and_energy(windows[i, :], fps)
+
         mfcc = get_mfcc(windows[i, :], fps)
         pitch_vectors.append(pitch)
         energy_vectors.append(energy)
@@ -182,5 +190,10 @@ if __name__ == "__main__":
     energy_dt_features = get_diffs(energy_vectors)
     energy_dt_features = seperate_features_into_windows(energy_dt_features, frame_length, frame_gap)
 
-    all_features = concatenate_features((pitch_features, energy_features, pitch_dt_features, energy_dt_features, mfcc_features))
+    #all_features = concatenate_features((pitch_features, energy_features, pitch_dt_features, energy_dt_features, mfcc_features))
+    all_features = mfcc_features
     print all_features.shape
+    return all_features
+
+if __name__ == "__main__":
+    all_features = gen_features_from_wave_file("in.wav")
