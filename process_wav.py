@@ -71,7 +71,7 @@ def get_pitch_and_energy(data, fps):
     else:
         freq = fft_data_idx * fps/len(window)
 
-    return np.array([freq, energy])
+    return freq, energy
 
 def get_mfcc(data, fps):
     window_size = len(data)
@@ -130,10 +130,45 @@ def get_diffs(data, distance=2):
 
     return np.convolve(data, filter, mode='valid')
 
+def seperate_features_into_windows(data, window_length, gap):
+    """ window_length, gap is in number of frames """
+    """ data is a list of features of variable length """
+    windows = []
+    num_windows = len(data)/gap
+    for i in xrange(num_windows):
+        idx = i*gap
+        
+        window_data = data[idx:idx + window_length]
+        if len(window_data) < window_length:
+            break;
+
+        window_data = np.array(window_data)
+        window_data = window_data.reshape((window_data.size), 1)
+        print window_data.shape
+
+        windows.append(window_data)
+
+    windows = np.array(windows)
+    return windows
+
 if __name__ == "__main__":
     data, fps = read_wav_file_into_np("in.wav")
     windows = seperate_into_windows(data, fps, 25, 10)
+    pitch_vectors = []
+    energy_vectors = []
+    mfcc_vectors = []
     for i in xrange(windows.shape[0]):
-        pitch_energy = get_pitch_and_energy(windows[i, :], fps)
+        pitch, energy = get_pitch_and_energy(windows[i, :], fps)
         mfcc = get_mfcc(windows[i, :], fps)
-        vector = np.concatenate((mfcc, pitch_energy))
+        pitch_vectors.append(pitch)
+        energy_vectors.append(energy)
+        mfcc_vectors.append(mfcc)
+
+        print "processing:", i, "/", windows.shape[0]
+
+    frame_length = 100
+    frame_gap = 10
+    pitch_features = seperate_features_into_windows(pitch_vectors, frame_length, frame_gap)
+    energy_features = seperate_features_into_windows(energy_vectors, frame_length, frame_gap)
+    mfcc_features = seperate_features_into_windows(mfcc_vectors, frame_length, frame_gap)
+
