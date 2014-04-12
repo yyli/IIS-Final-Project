@@ -119,6 +119,16 @@ def freq2mel(freq):
 def mel2freq(mel):
     return 700 * (math.exp(freq / 1127.01048 - 1))
 
+def get_diffs(data, distance=2):
+    repeat = distance/2
+    filter = [-1, 1]*repeat
+    if distance % 2:
+        filter.append(-1)
+
+    if len(filter) > len(data):
+        print "Error: length of data too short to calculate differences over that distance"
+
+    return np.convolve(data, filter, mode='valid')
 
 if __name__ == "__main__":
     data, fps = read_wav_file_into_np("in.wav")
