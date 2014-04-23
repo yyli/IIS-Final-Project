@@ -56,7 +56,8 @@ def get_pitch_and_energy(data, fps):
     # could multiply by hamming windows
     window = data * np.hamming(len(data))
     
-    fft_data = abs(np.fft.rfft(window))**2
+    fft_ret = np.fft.rfft(window)
+    fft_data = abs(fft_ret)**2
     fft_data_idx = fft_data[1:].argmax() + 1
 
     energy = np.sum(np.abs(data))/len(data)
@@ -77,7 +78,7 @@ def get_pitch_and_energy(data, fps):
     else:
         freq = fft_data_idx * fps/len(window)
 
-    return freq, energy
+    return freq, energy, fft_data
 
 def get_mfcc(data, fps):
     window_size = len(data)
@@ -167,15 +168,17 @@ def gen_features_from_wave_file(filename):
     pitch_vectors = []
     energy_vectors = []
     mfcc_vectors = []
+    fft_vectors = []
     for i in xrange(windows.shape[0]):
-        pitch, energy = get_pitch_and_energy(windows[i, :], fps)
+        pitch, energy, fft_data = get_pitch_and_energy(windows[i, :], fps)
 
         mfcc = get_mfcc(windows[i, :], fps)
         pitch_vectors.append(pitch)
         energy_vectors.append(energy)
         mfcc_vectors.append(mfcc)
+        fft_vectors.append(fft_data)
 
-        print "processing:", i, "/", windows.shape[0] - 1
+        #print "processing:", i, "/", windows.shape[0] - 1
 
     frame_length = 100
     frame_gap = 10
@@ -183,15 +186,21 @@ def gen_features_from_wave_file(filename):
     energy_features = seperate_features_into_windows(energy_vectors, frame_length, frame_gap)
     pitch_features = seperate_features_into_windows(pitch_vectors, frame_length, frame_gap)
     mfcc_features = seperate_features_into_windows(mfcc_vectors, frame_length, frame_gap)
+    fft_features = seperate_features_into_windows(fft_vectors, frame_length, frame_gap)
     
     pitch_dt_features = get_diffs(pitch_vectors)
     pitch_dt_features = seperate_features_into_windows(pitch_dt_features, frame_length, frame_gap)
     
     energy_dt_features = get_diffs(energy_vectors)
     energy_dt_features = seperate_features_into_windows(energy_dt_features, frame_length, frame_gap)
+    energy_dt2_features = get_diffs(energy_vectors, 3)
+    energy_dt2_features = seperate_features_into_windows(energy_dt2_features, frame_length, frame_gap)
 
-    #all_features = concatenate_features((pitch_features, energy_features, pitch_dt_features, energy_dt_features, mfcc_features))
-    all_features = mfcc_features
+    # all_features = concatenate_features((pitch_features, energy_features, pitch_dt_features, energy_dt_features, mfcc_features))
+    # all_features = concatenate_features((pitch_dt_features, energy_dt_features))
+    # all_features = concatenate_features((energy_dt_features, energy_dt2_features))
+    # all_features = fft_features
+    all_features = concatenate_features((pitch_features, energy_features, pitch_dt_features, energy_dt_features, mfcc_features))
     print all_features.shape
     return all_features
 
